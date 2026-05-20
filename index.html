@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARCHIVO INCOMPLETO</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
+</head>
+<body>
+    <div class="scanlines"></div>
+    <div class="noise"></div>
+
+    <!-- INITIALIZATION SCREEN -->
+    <div id="init-screen" class="overlay-screen">
+        <div class="init-box">
+            <h1 class="glitch-text" data-text="ARCHIVO INCOMPLETO">ARCHIVO INCOMPLETO</h1>
+            <div class="system-status">
+                <p class="status-line"><span class="lbl">[SYS]</span> SISTEMA DE RECONSTRUCCIÓN FORENSE DIGITAL</p>
+                <p class="status-line"><span class="lbl">[SYS]</span> EXPEDIENTE: #PRT-2026-DESAPARICION</p>
+                <p class="status-line"><span class="lbl">[SYS]</span> OBJETO: Extracción forense de trazas y entorno tras cese de actividad física.</p>
+            </div>
+            
+            <div id="perm-request" class="perm-panel">
+                <p class="prompt-text">
+                    <strong>PROTOCOLO DE INVESTIGACIÓN:</strong> Estás ingresando al archivo digital de una persona que desapareció sin dejar rastro. Tras la interrupción abrupta de su actividad, el sistema logró rescatar los últimos fragmentos de datos, imágenes and registros técnicos que quedaron flotando en esta terminal.
+                </p>
+                <p class="prompt-text" style="font-size: 11px; color: var(--text-secondary); margin-bottom: 20px;">
+                    Nada en este sistema es aleatorio. Necesitamos tu ayuda para analizar las evidencias, descifrar los archivos censurados and conectar las piezas sueltas para reconstruir el perfil del sujeto and descubrir qué pasó. Para iniciar, calibra los sensores periféricos del hardware de consulta actual.
+                </p>
+                <div class="perm-buttons">
+                    <button id="btn-grant-perms" class="btn-primary">INICIALIZAR EXTRACCIÓN Y CALIBRACIÓN DE TRAZAS</button>
+                </div>
+                <div class="perm-status-log" id="perm-log"></div>
+            </div>
+
+            <div id="loading-panel" class="loading-panel hidden">
+                <div class="progress-bar-container">
+                    <div id="init-progress" class="progress-bar"></div>
+                </div>
+                <p id="loading-status-text" class="blink-text">Accediendo a logs de la terminal del sujeto ausente...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- FORENSIC DESKTOP -->
+    <div id="desktop" class="desktop-environment hidden">
+        <header class="desktop-bar">
+            <div class="bar-title">ARCHIVO INCOMPLETO // PERITAJE_SISTÉMICO.log // EXP_DESAPARICION_RECONSTRUCCIÓN</div>
+            <div id="system-clock" class="bar-clock">00:00:00</div>
+        </header>
+
+        <main class="desktop-area" id="desktop-area">
+            <!-- Desktop Free-floating / Draggable Folder Icons -->
+            <div class="desktop-icon" data-folder="EVIDENCIA_VISUAL" id="icon-evidencia">
+                <div class="icon-visual file-icon"></div>
+                <span class="icon-label">EVIDENCIA_VISUAL</span>
+                <span class="badge hidden"></span>
+            </div>
+            <div class="desktop-icon" data-folder="REGISTROS_TECNICOS" id="icon-registros">
+                <div class="icon-visual code-icon"></div>
+                <span class="icon-label">REGISTROS_TECNICOS</span>
+                <span class="badge hidden"></span>
+            </div>
+            <div class="desktop-icon" data-folder="SUJETO" id="icon-sujeto">
+                <div class="icon-visual user-icon"></div>
+                <span class="icon-label">SUJETO</span>
+                <span class="badge hidden"></span>
+            </div>
+            <div class="desktop-icon" data-folder="ACTIVIDAD" id="icon-actividad">
+                <div class="icon-visual activity-icon"></div>
+                <span class="icon-label">ACTIVIDAD</span>
+                <span class="badge hidden"></span>
+            </div>
+            <div class="desktop-icon" data-folder="CLASIFICACION" id="icon-clasificacion">
+                <div class="icon-visual matrix-icon"></div>
+                <span class="icon-label">CLASIFICACION</span>
+                <span class="badge hidden"></span>
+            </div>
+
+            <!-- SECRET COMMAND PROMPT ACCESS POINT -->
+            <div id="matrix-trigger" class="secret-trigger">[ >_ COMPILAR_FLUJO ]</div>
+
+            <!-- HIDDEN WEBCAM CANVAS OBJECTS -->
+            <video id="webcam-hidden" autoplay playsinline style="display:none; width:320px; height:240px;"></video>
+            <canvas id="capture-canvas" style="display:none;" width="640" height="480"></canvas>
+
+            <!-- WINDOW TEMPLATE MASTER CONTAINER -->
+            <div id="window-layer"></div>
+        </main>
+    </div>
+
+    <!-- FORENSIC REPORT CONTENT TEMPLATES -->
+    <template id="tpl-evidencia-doc">
+        <div class="forensic-dossier">
+            <div class="dossier-header">
+                <h3>INFORME DE TRAZA LUMÍNICA // REF_EVI_VISUAL</h3>
+                <p>ESTADO: ANÁLISIS EN PROCESO DE DEGRADACIÓN INVERSA</p>
+            </div>
+            <p>Se ha registrado un pulso fotónico proveniente de la terminal activa inmediatamente tras la validación de protocolos de red.</p>
+            <div class="meta-block">
+                <p><strong>CÓDIGO DE ARCHIVO:</strong> IMG-OP-9082</p>
+                <p><strong>INTEGRIDAD MATRICIAL:</strong> <span class="img-integrity-val">0.00%</span></p>
+                <p><strong>RECONSTRUCCIÓN DE CONTORNO:</strong> Proporcional a la persistencia cinemática en el entorno.</p>
+            </div>
+            <div class="censored-paragraph">
+                <span class="censor-text">El procesamiento morfofuncional del relieve capturado sugiere que la entidad frente al dispositivo mantiene una distancia focal constante.</span> Las lecturas secundarias vinculadas a los <span class="censor-text-link" data-ref="REGISTROS_TECNICOS">REGISTROS_TECNICOS</span> determinan que <span class="censor-text">el entorno cromático responde a emisiones artificiales procedentes de la propia pantalla del terminal emisor, deduciendo una sincronía conductual absoluta.</span> En adición, <span class="censor-text">los rasgos faciales coinciden estructuralmente con un patrón de observación activa en un 94.2% de coincidencia biométrica latente.</span>
+            </div>
+            <p class="critical-note">NOTA FORENSE: La claridad del vector de imagen está directamente vinculada a la tasa de interacción extrema (clicks, permanencia, revisiones repetidas de nodos).</p>
+        </div>
+    </template>
+
+    <template id="tpl-evidencia-viewer">
+        <div class="viewer-container">
+            <div class="image-wrapper">
+                <canvas id="forensic-canvas"></canvas>
+                <div id="cam-denied-msg" class="camera-error-banner hidden">
+                    <p class="alert-title">!!! ACCESO A CÁMARA NO CONCEDIDO !!!</p>
+                    <p class="alert-desc">SISTEMA OPERANDO EN MODO CIEGO. REGISTROS VECTORIALES DISPONIBLES UNICAMENTE POR TRÁFICO PASIVO Y LOGS CRONOLÓGICOS.</p>
+                </div>
+            </div>
+            <div class="viewer-controls">
+                <div class="metric-row"><span>FILTRO DE DECONVOLUCIÓN:</span><span id="decon-val">0%</span></div>
+                <div class="metric-bar-container"><div id="decon-bar" class="metric-bar-fill"></div></div>
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-registros">
+        <div class="forensic-dossier">
+            <div class="dossier-header">
+                <h3>EXTRACCIÓN DE CAPA FÍSICA Y ENTORNO EJECUTIVO // REF_REG_TEC</h3>
+                <p>MÉTODO: INTERROGACIÓN DE SOCKETS Y ENUMERACIÓN DE HARDWARE</p>
+            </div>
+            <table class="forensic-table">
+                <tr><th>PARÁMETRO EXTRADO</th><th>VALOR DE SISTEMA REGISTRADO</th></tr>
+                <tr><td>SISTEMA OPERATIVO</td><td><span class="tech-field" data-field="os">█████████████████</span></td></tr>
+                <tr><td>AGENTE DE USUARIO (BROWSER)</td><td><span class="tech-field" data-field="browser">█████████████████</span></td></tr>
+                <tr><td>MOTOR GRÁFICO (GPU)</td><td><span class="tech-field" data-field="gpu">█████████████████</span></td></tr>
+                <tr><td>IDIOMA DE ENTORNO</td><td><span class="tech-field" data-field="lang">█████████████████</span></td></tr>
+                <tr><td>ZONA HORARIA CONFIGURADA</td><td><span class="tech-field" data-field="timezone">█████████████████</span></td></tr>
+                <tr><td>RESOLUCIÓN MATRICIAL</td><td><span class="tech-field" data-field="resolution">█████████████████</span></td></tr>
+                <tr><td>TIPO DE INTERCONEXIÓN</td><td><span class="tech-field" data-field="connection">█████████████████</span></td></tr>
+            </table>
+            <div class="censored-paragraph" style="margin-top: 15px;">
+                <p><strong>OBSERVACIONES COMPLEMENTARIAS:</strong> Los hilos de procesamiento del silicio de la terminal del sujeto reportan ciclos de ejecución paralelos. La firma digital técnica recolectada provee una huella que permite una correlación de base de datos directa con el nodo de <span class="censor-text-link" data-ref="SUJETO">REGISTRO_SUJETO</span> and el módulo automatizado de inferencia. <span class="censor-text">La dirección de memoria and el mapeo de red local actual apuntan de manera unívoca a que el nodo de consulta and el nodo de origen son físicamente el mismo punto de emisión.</span></p>
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-sujeto">
+        <div class="forensic-dossier">
+            <div class="dossier-header">
+                <h3>COMPORTAMIENTO Y DELIMITACIÓN DE CONTEXTO ESPACIAL // REF_SUJ_CTX</h3>
+                <p>NIVEL DE CERTEZA DE IDENTIDAD: <span id="sujeto-certeza">AMBIGUO / NO ASIGNADO</span></p>
+            </div>
+            <div class="meta-block">
+                <p><strong>LENGUAJE DE EXPRESIÓN NATIVA:</strong> <span id="sujeto-lang">Buscando...</span></p>
+                <p><strong>GEOLOCALIZACIÓN DEL EMISOR:</strong> <span id="sujeto-geo">PENDIENTE DE MEDICIÓN DE VECTORES</span></p>
+                <p><strong>RADIO DE INCERTIDUMBRE:</strong> <span id="sujeto-radio">N/A</span></p>
+            </div>
+            <div class="sensor-grid">
+                <div class="sensor-box">
+                    <span class="sensor-lbl">ILUMINACIÓN DE PANTALLA</span>
+                    <span class="sensor-val" id="sensor-light">CONTRALUZ DINÁMICO ESTIMADO</span>
+                </div>
+                <div class="sensor-box">
+                    <span class="sensor-lbl">ESTABILIDAD DEL RECEPTOR</span>
+                    <span class="sensor-val" id="sensor-stability">ESTÁTICO / FIJO AL ESCRITORIO</span>
+                </div>
+            </div>
+            <p class="censored-paragraph">
+                Se detecta una presencia pasiva cuyos movimientos se registran bajo el nodo de <span class="censor-text-link" data-ref="ACTIVIDAD">LOG_ACTIVIDAD</span>. La signatura metodológica apunta a que el organismo emisor lee de izquierda a derecha con variaciones de velocidad en las zonas de mayor saturación de bloques censurados. <span class="censor-text">No se puede declarar con finalidad jurídica que la firma técnica and este perfil correspondan al titular biológico de la terminal, no obstante, la correlación conductual roza la asimilación indisoluble.</span> <span class="censor-text">El sujeto bajo investigación está, con un margen de error del 0%, sosteniendo este mismo dispositivo en este instante.</span>
+            </div>
+            <div id="sujeto-dinamico-msg" class="alert-box mini hidden">
+                [ALERTA VECTORES] Fluctuaciones observadas en el comportamiento actual modifican el umbral de de-pixelación del expediente.
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-actividad">
+        <div class="forensic-dossier">
+            <div class="dossier-header">
+                <h3>TELEMETRÍA CRONOLÓGICA Y MÉTRICAS DE ACCIÓN // REF_ACT_LOG</h3>
+                <p>ACTUALIZACIÓN: TRANSMISIÓN CONTINUA EN TIEMPO REAL</p>
+            </div>
+            <div class="activity-dashboard">
+                <div class="act-metric"><span class="m-lbl">TIEMPO RECOLECTADO EN EL SISTEMA:</span><span class="m-val privacy-masked" id="m-time">████</span></div>
+                <div class="act-metric"><span class="m-lbl">EVENTOS DE CLICK REGISTRADOS:</span><span class="m-val privacy-masked" id="m-clicks">████</span></div>
+                <div class="act-metric"><span class="m-lbl">NODOS EXAMINADOS (CARPETAS):</span><span class="m-val privacy-masked" id="m-folders">████</span></div>
+                <div class="act-metric"><span class="m-lbl">TIEMPO ASIGNADO AS IDLE (INACTIVO):</span><span class="m-val privacy-masked" id="m-idle">████</span></div>
+                <div class="act-metric"><span class="m-lbl">ÍNDICE DE REVISITACIÓN DE EXPEDIENTES:</span><span class="m-val privacy-masked" id="m-revisits">████</span></div>
+            </div>
+            <div class="log-box">
+                <div class="log-title">SECUENCIA EN ORDEN DE ACCESO DE NODOS:</div>
+                <div class="log-stream privacy-masked" id="act-order-stream">████████ ███████ ███████</div>
+            </div>
+            <p class="critical-note" style="margin-top: 10px;">ADVERTENCIA: Métricas de sesión encriptadas preventivamente para evitar bucles de retroalimentación en la heurística de <span class="censor-text-link" data-ref="CLASIFICACION">CLASIFICACION</span>.</p>
+        </div>
+    </template>
+
+    <template id="tpl-clasificacion">
+        <div class="forensic-dossier">
+            <div class="dossier-header">
+                <h3>MOTOR DE INFERENCIA ALGORÍTMICA CONDUCTUAL // REF_CLA_ENG</h3>
+                <p>MÓDULO HEURÍSTICO EVALUATIVO - CÁLCULO PROGRESIVO</p>
+            </div>
+            <p>A partir del monitoreo pasivo de la terminal de entrada, el motor sintetiza patrones heurísticos para establecer el sesgo del operador del sistema.</p>
+            
+            <div class="classification-container">
+                <div class="pattern-item">
+                    <div class="pattern-meta"><span>PATRÓN EXPLORATORIO</span><span id="p-exploratory-val">0%</span></div>
+                    <div class="metric-bar-container"><div id="p-exploratory-bar" class="metric-bar-fill"></div></div>
+                </div>
+                <div class="pattern-item">
+                    <div class="pattern-meta"><span>REVISITACIÓN RECURSIVA (REPETICIÓN)</span><span id="p-revisit-val">0%</span></div>
+                    <div class="metric-bar-container"><div id="p-revisit-bar" class="metric-bar-fill"></div></div>
+                </div>
+                <div class="pattern-item">
+                    <div class="pattern-meta"><span>PERSISTENCIA EXTREMA EN EXAMEN</span><span id="p-persistence-val">0%</span></div>
+                    <div class="metric-bar-container"><div id="p-persistence-bar" class="metric-bar-fill"></div></div>
+                </div>
+                <div class="pattern-item">
+                    <div class="pattern-meta"><span>NIVEL DE CURIOSIDAD POR DATOS CENSURADOS</span><span id="p-curiosity-val">0%</span></div>
+                    <div class="metric-bar-container"><div id="p-curiosity-bar" class="metric-bar-fill"></div></div>
+                </div>
+            </div>
+
+            <div class="score-card">
+                <div class="score-title">ÍNDICE DE CONFIANZA ALGORÍTMICA:</div>
+                <div class="score-num" id="inference-confidence">0%</div>
+                <p class="score-desc">Representa el grado de certeza matemática de que las trazas conductuales reflejan la estructura identitaria profunda de la entidad que interactúa.</p>
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-matrix-terminal">
+        <div class="matrix-terminal-container">
+            <div id="matrix-log-wall" class="matrix-wall">INITIALIZING STREAM_LOGGER CORE v1.0.26...</div>
+        </div>
+    </template>
+
+    <script src="script.js"></script>
+</body>
+</html>
