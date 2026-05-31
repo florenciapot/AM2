@@ -580,10 +580,34 @@
 
         document.querySelectorAll('.desktop-icon').forEach(icon => {
             let d = 0;
+            let touchActive = false;
+
             icon.addEventListener('mousedown', () => d = 0);
             icon.addEventListener('mousemove', () => d++);
-            icon.addEventListener('mouseup', () => { if (d < 3 && window.innerWidth > 768) openFolderWindow(icon.getAttribute('data-folder')); });
-            icon.addEventListener('click', () => { if (window.innerWidth <= 768) openFolderWindow(icon.getAttribute('data-folder')); });
+            icon.addEventListener('mouseup', () => {
+                if (d < 3 && window.innerWidth > 768) openFolderWindow(icon.getAttribute('data-folder'));
+            });
+
+            icon.addEventListener('touchstart', () => {
+                d = 0;
+                touchActive = true;
+            }, { passive: true });
+
+            icon.addEventListener('touchmove', () => d++, { passive: true });
+
+            icon.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                if (d < 3 && window.innerWidth <= 768) {
+                    openFolderWindow(icon.getAttribute('data-folder'));
+                }
+                setTimeout(() => touchActive = false, 0);
+            });
+
+            icon.addEventListener('click', (e) => {
+                if (window.innerWidth <= 768 && !touchActive) {
+                    openFolderWindow(icon.getAttribute('data-folder'));
+                }
+            });
         });
 
         if (UI.windowLayer) {
