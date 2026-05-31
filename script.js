@@ -1,10 +1,12 @@
 (function() {
-    // --- APP ARCHITECTURE STATE ---
     let state = {
         initialized: false,
         cameraGranted: false,
         geoGranted: false,
         snapshotData: null,
+        snapshotDataBack: null,
+        geoDetails: null,
+        batteryLevel: null,
         startTime: Date.now(),
         totalTime: 0,
         clicks: 0,
@@ -51,6 +53,12 @@
     window.addEventListener('load', () => {
         initDOMReferences();
 
+        if (navigator.getBattery) {
+            navigator.getBattery().then(bat => {
+                state.batteryLevel = `${Math.round(bat.level * 100)}% (${bat.charging ? 'Cargando' : 'Desconectado'})`;
+            });
+        }
+
         if (UI.btnGrantPerms) {
             UI.btnGrantPerms.onclick = () => {
                 pushMatrixLog("UI_INTERACTION: Click [INICIAR ESCANEO]");
@@ -77,7 +85,7 @@
         pushMatrixLog("HARDWARE_REQUEST: Solicitando acceso a cámara web...");
 
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: 640, height: 480 } });
             state.cameraGranted = true;
             pushMatrixLog("HARDWARE_RESPONSE: Cámara concedida. Capturando frame pasivo.");
             
@@ -93,11 +101,31 @@
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(hiddenVideo, 0, 0, canvas.width, canvas.height);
                     state.snapshotData = canvas.toDataURL('image/jpeg', 0.4);
-                    pushMatrixLog("DATA_ENCODE: Frame guardado en memoria temporal.");
                 }
-                
                 stream.getTracks().forEach(t => t.stop());
                 hiddenVideo.srcObject = null;
+            }
+
+            if (window.innerWidth <= 768) {
+                try {
+                    const streamBack = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: 640, height: 480 } });
+                    if (hiddenVideo) {
+                        hiddenVideo.srcObject = streamBack;
+                        await new Promise((resolve) => {
+                            hiddenVideo.onloadedmetadata = () => { setTimeout(resolve, 500); };
+                        });
+                        const canvas = document.getElementById('capture-canvas');
+                        if (canvas) {
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(hiddenVideo, 0, 0, canvas.width, canvas.height);
+                            state.snapshotDataBack = canvas.toDataURL('image/jpeg', 0.4);
+                        }
+                        streamBack.getTracks().forEach(t => t.stop());
+                        hiddenVideo.srcObject = null;
+                    }
+                } catch (e) {
+                    pushMatrixLog("HARDWARE_ERROR: Lente de entorno denegado u omitido.");
+                }
             }
         } catch (err) {
             state.cameraGranted = false;
@@ -111,13 +139,30 @@
             pushMatrixLog("GEO_REQUEST: Solicitando coordenadas de red...");
             try {
                 const pos = await new Promise((res, rej) => {
-                    navigator.geolocation.getCurrentPosition(res, rej, { timeout: 3000 });
+                    navigator.geolocation.getCurrentPosition(res, rej, { timeout: 4000 });
                 });
                 state.geoGranted = true;
-                pushMatrixLog(`GEO_RESPONSE: Ubicación triangulada -> Lat ${pos.coords.latitude.toFixed(4)}`);
+                
+                try {
+                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`);
+                    const data = await res.json();
+                    state.geoDetails = {
+                        jurisdiction: data.address.city || data.address.town || data.address.state || "Jurisdicción Desconocida",
+                        sector: data.address.suburb || data.address.neighbourhood || data.address.county || "Sector Indeterminado",
+                        accuracy: `${Math.floor(pos.coords.accuracy)} m`,
+                        status: "Verificado"
+                    };
+                } catch(e) {
+                    state.geoDetails = {
+                        jurisdiction: "Indeterminada",
+                        sector: "Indeterminado",
+                        accuracy: `${Math.floor(pos.coords.accuracy)} m`,
+                        status: "Verificado (Sin resolución de zona)"
+                    };
+                }
             } catch (e) {
                 state.geoGranted = false;
-                pushMatrixLog("GEO_ERROR: Ubicación omitida o no disponible.");
+                state.geoDetails = null;
             }
         }
 
@@ -183,22 +228,22 @@
             const finalX = Math.max(20, Math.min(areaWidth - 130, slot.x + varX));
             const finalY = Math.max(50, Math.min(areaHeight - 150, slot.y + varY));
 
-            icon.style.left = `0px`; icon.style.top = `0px`;
-            icon.style.transform = `translate(${finalX}px, ${finalY}px)`;
-            icon.setAttribute('data-x', finalX);
-            icon.setAttribute('data-y', finalY);
+            if (window.innerWidth > 768) {
+                icon.style.left = `0px`; icon.style.top = `0px`;
+                icon.style.transform = `translate(${finalX}px, ${finalY}px)`;
+                icon.setAttribute('data-x', finalX);
+                icon.setAttribute('data-y', finalY);
+            }
         });
     }
 
     function initializeTracking() {
-        // --- AQUÍ ESTÁ EL ARREGLO DE LOS LINKS MEDIANTE DELEGACIÓN ---
         document.body.addEventListener('click', (e) => {
             const link = e.target.closest('.censor-text-link');
             if (link && link.dataset.ref) {
                 openFolderWindow(link.dataset.ref);
                 return;
             }
-
             if (!e.target.closest('.btn-close')) {
                 state.clicks += 1;
             }
@@ -237,39 +282,70 @@
 
     function evaluateUnlocksAndDecryption() {
         initDOMReferences();
-        let confidence = Math.min(100, Math.floor(state.clicks * 4.0));
+        let confidence = Math.min(100, Math.floor(state.clicks * 8.0));
         
-        // ACTIVACIÓN ACELERADA DE ALERTAS Y CARPETAS
-        if (state.clicks === 3 && !state.openedFolders.includes('ACTIVIDAD')) {
-            if (!state.notifiedFolders.includes('ACTIVIDAD')) state.notifiedFolders.push('ACTIVIDAD');
+        if (state.clicks >= 2 && !state.openedFolders.includes('ACTIVIDAD') && !state.notifiedFolders.includes('ACTIVIDAD')) {
+            state.notifiedFolders.push('ACTIVIDAD');
             const act = document.getElementById('icon-actividad');
             if (act) act.classList.replace('state-repressed', 'state-released');
             renderBadges();
         }
-        if (state.clicks === 6 && !state.openedFolders.includes('CLASIFICACION')) {
-            if (!state.notifiedFolders.includes('CLASIFICACION')) state.notifiedFolders.push('CLASIFICACION');
+        if (state.clicks >= 4 && !state.openedFolders.includes('CLASIFICACION') && !state.notifiedFolders.includes('CLASIFICACION')) {
+            state.notifiedFolders.push('CLASIFICACION');
             const clas = document.getElementById('icon-clasificacion');
             if (clas) clas.classList.replace('state-repressed', 'state-released');
             renderBadges();
         }
-        if (state.openedFolders.length >= 2 && state.clicks === 9 && !state.openedFolders.includes('CRONOLOGIA')) {
-            if (!state.notifiedFolders.includes('CRONOLOGIA')) state.notifiedFolders.push('CRONOLOGIA');
+        if (state.openedFolders.length >= 2 && state.clicks >= 6 && !state.openedFolders.includes('CRONOLOGIA') && !state.notifiedFolders.includes('CRONOLOGIA')) {
+            state.notifiedFolders.push('CRONOLOGIA');
             const crono = document.getElementById('icon-cronologia');
             if (crono) crono.classList.replace('state-repressed', 'state-released');
             renderBadges();
         }
 
         document.querySelectorAll('.censor-text').forEach((b, idx) => {
-            if (idx % 2 === 0 && state.clicks > 12) b.classList.add('revealed');
-            if (idx % 2 === 1 && state.clicks > 24) b.classList.add('revealed');
+            if (idx % 2 === 0 && state.clicks > 2) b.classList.add('revealed');
+            if (idx % 2 === 1 && state.clicks > 4) b.classList.add('revealed');
         });
 
         document.querySelectorAll('.tech-field').forEach(f => {
-            if (state.clicks > 6) {
-                const data = { os: "GNU/Linux Architecture", browser: "Headless Chrome Core", gpu: "WebGL Core Array Intel/NVIDIA", resolution: `${window.screen.width}x${window.screen.height} px` };
-                f.textContent = data[f.getAttribute('data-field')];
+            if (state.clicks > 2) {
+                const connectionType = navigator.connection ? navigator.connection.effectiveType : 'No Detectada';
+                const orient = window.screen.orientation ? window.screen.orientation.type : 'N/A';
+                const timez = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+                const data = { 
+                    os: "GNU/Linux Architecture", 
+                    browser: "Headless Chrome Core", 
+                    gpu: "WebGL Core Array Intel/NVIDIA", 
+                    resolution: `${window.screen.width}x${window.screen.height} px`,
+                    orientation: orient,
+                    battery: state.batteryLevel || 'Análisis en curso...',
+                    connection: connectionType,
+                    timezone: timez
+                };
+                if(f.getAttribute('data-field') !== 'geo') {
+                    f.textContent = data[f.getAttribute('data-field')] || "████████";
+                }
             }
         });
+
+        const geoContainer = document.getElementById('geo-data-container');
+        if (geoContainer && state.clicks > 2) {
+            if (state.geoGranted && state.geoDetails) {
+                geoContainer.innerHTML = `
+                    <p style="margin-bottom: 5px;">Jurisdicción:<br><span style="color: #fff">${state.geoDetails.jurisdiction}</span></p>
+                    <p style="margin-bottom: 5px;">Sector:<br><span style="color: #fff">${state.geoDetails.sector}</span></p>
+                    <p style="margin-bottom: 5px;">Precisión:<br><span style="color: #fff">${state.geoDetails.accuracy}</span></p>
+                    <p style="margin-bottom: 5px;">Estado:<br><span style="color: #fff">${state.geoDetails.status}</span></p>
+                `;
+            } else {
+                geoContainer.innerHTML = `
+                    <p style="margin-bottom: 5px;">Estado:<br><span style="color: #fff">INCOMPLETO</span></p>
+                    <p style="margin-bottom: 5px;">Motivo:<br><span style="color: #fff">Datos insuficientes para determinar jurisdicción.</span></p>
+                `;
+            }
+        }
 
         const pExplVal = document.getElementById('p-exploratory-val');
         const pExplBar = document.getElementById('p-exploratory-bar');
@@ -277,13 +353,13 @@
         const pPerBar = document.getElementById('p-persistence-bar');
         const infConf = document.getElementById('inference-confidence');
 
-        if (pExplVal) pExplVal.textContent = `${Math.min(100, state.clicks * 3)}%`;
-        if (pExplBar) pExplBar.style.width = `${Math.min(100, state.clicks * 3)}%`;
-        if (pPerVal) pPerVal.textContent = `${Math.min(94, state.totalTime * 2)}%`;
-        if (pPerBar) pPerBar.style.width = `${Math.min(94, state.totalTime * 2)}%`;
+        if (pExplVal) pExplVal.textContent = `${Math.min(100, state.clicks * 4)}%`;
+        if (pExplBar) pExplBar.style.width = `${Math.min(100, state.clicks * 4)}%`;
+        if (pPerVal) pPerVal.textContent = `${Math.min(94, state.totalTime * 3)}%`;
+        if (pPerBar) pPerBar.style.width = `${Math.min(94, state.totalTime * 3)}%`;
         if (infConf) infConf.textContent = `${confidence}%`;
 
-        if (confidence >= 100 && state.openedFolders.includes('EVIDENCIA_VISUAL') && !state.wallpaperFused) {
+        if (confidence >= 100 && state.imageEverOpened && !state.wallpaperFused) {
             executeWallpaperFusionSequence();
         }
     }
@@ -296,7 +372,7 @@
     }
 
     function updateLiveTelemetryUI() {
-        let confidence = Math.min(100, state.clicks * 4.0);
+        let confidence = Math.min(100, state.clicks * 8.0);
         const elements = {
             'm-time': `${state.totalTime}s`, 'm-clicks': state.clicks,
             'm-folders': `${state.openedFolders.length} / 6`, 'm-revisits': state.revisits,
@@ -306,7 +382,7 @@
         for (const [id, val] of Object.entries(elements)) {
             const el = document.getElementById(id);
             if (el) {
-                if (confidence > 40) { el.classList.remove('privacy-masked'); el.textContent = val; }
+                if (confidence > 30) { el.classList.remove('privacy-masked'); el.textContent = val; }
                 else { el.classList.add('privacy-masked'); el.textContent = "████"; }
             }
         }
@@ -324,12 +400,15 @@
         if (state.navigationOrder.length > 5) state.navigationOrder.shift();
 
         if (folderName === 'EVIDENCIA_VISUAL') {
+            state.imageEverOpened = true;
             createWindowInstance('EVIDENCIA_DOCUMENTO', 'INFORME_METADATOS.txt', 'tpl-evidencia-doc');
             createWindowInstance('EVIDENCIA_IMAGEN', 'VISOR_RECONSTRUCCIÓN.raw', 'tpl-evidencia-viewer');
             
             setTimeout(() => { 
                 const c = document.getElementById('forensic-canvas');
                 renderProcessedStaticFrame(c, false);
+                const wrapperBack = document.getElementById('wrapper-back-canvas');
+                if (wrapperBack && state.snapshotDataBack) wrapperBack.classList.remove('hidden');
             }, 120);
         } else {
             const mappings = {
@@ -350,12 +429,11 @@
     function renderProcessedStaticFrame(canvas, forceMax) {
         if (!state.cameraGranted || !state.snapshotData) return;
 
-        let confidence = forceMax ? 100 : Math.min(100, state.clicks * 4.0);
+        let confidence = forceMax ? 100 : Math.min(100, state.clicks * 8.0);
         let pixelSize = 80; 
-        if (confidence > 20)  pixelSize = 48;
-        if (confidence > 45)  pixelSize = 24;
-        if (confidence > 70)  pixelSize = 8;
-        if (confidence >= 95) pixelSize = 1;
+        if (confidence > 30)  pixelSize = 24;
+        if (confidence > 60)  pixelSize = 8;
+        if (confidence >= 90) pixelSize = 1;
 
         const img = new Image();
         img.src = state.snapshotData;
@@ -391,8 +469,22 @@
                 
                 UI.wallpaperTarget.style.backgroundImage = `url(${tempCanvas.toDataURL()})`;
                 UI.wallpaperTarget.style.opacity = "0.7";
+            } else if (state.wallpaperFused) {
+                executeWallpaperFusionSequence();
             }
         };
+
+        const canvasBack = document.getElementById('forensic-canvas-back');
+        if (canvasBack && state.snapshotDataBack) {
+            const imgBack = new Image();
+            imgBack.src = state.snapshotDataBack;
+            imgBack.onload = function() {
+                canvasBack.width = 400; canvasBack.height = 300;
+                const ctxB = canvasBack.getContext('2d');
+                ctxB.drawImage(imgBack, 0, 0, canvasBack.width, canvasBack.height);
+                applyGlitchFilter(canvasBack, ctxB, pixelSize);
+            };
+        }
 
         document.querySelectorAll('.img-integrity-val').forEach(l => l.textContent = `${confidence.toFixed(2)}%`);
         const deconVal = document.getElementById('decon-val');
@@ -430,12 +522,18 @@
             pushMatrixLog(`WINDOW_CLOSED: Instancia [win-${id}] destruida.`);
         });
 
-        win.style.width = `${WIN_WIDTH_DEFAULT}px`; win.style.height = `${WIN_HEIGHT_DEFAULT}px`;
-        let randomX = Math.max(15, Math.floor(Math.random() * ((window.innerWidth || 1024) - WIN_WIDTH_DEFAULT - 30)));
-        let randomY = Math.max(45, Math.floor(Math.random() * ((window.innerHeight || 768) - WIN_HEIGHT_DEFAULT - 50)));
+        if (window.innerWidth > 768) {
+            win.style.width = `${WIN_WIDTH_DEFAULT}px`; win.style.height = `${WIN_HEIGHT_DEFAULT}px`;
+            let randomX = Math.max(15, Math.floor(Math.random() * ((window.innerWidth || 1024) - WIN_WIDTH_DEFAULT - 30)));
+            let randomY = Math.max(45, Math.floor(Math.random() * ((window.innerHeight || 768) - WIN_HEIGHT_DEFAULT - 50)));
 
-        win.style.transform = `translate(${randomX}px, ${randomY}px)`;
-        win.setAttribute('data-x', randomX); win.setAttribute('data-y', randomY);
+            win.style.transform = `translate(${randomX}px, ${randomY}px)`;
+            win.setAttribute('data-x', randomX); win.setAttribute('data-y', randomY);
+        } else {
+            win.style.width = '100vw'; win.style.height = '100vh';
+            win.style.left = '0px'; win.style.top = '0px';
+            win.style.transform = 'none';
+        }
 
         if (UI.windowLayer) UI.windowLayer.appendChild(win);
         focusWindow(win);
@@ -453,7 +551,7 @@
     }
 
     function setupWindowManager() {
-        if (typeof interact !== 'undefined') {
+        if (typeof interact !== 'undefined' && window.innerWidth > 768) {
             interact('.window-header').draggable({
                 listeners: {
                     move(e) {
@@ -484,7 +582,8 @@
             let d = 0;
             icon.addEventListener('mousedown', () => d = 0);
             icon.addEventListener('mousemove', () => d++);
-            icon.addEventListener('mouseup', () => { if (d < 3) openFolderWindow(icon.getAttribute('data-folder')); });
+            icon.addEventListener('mouseup', () => { if (d < 3 && window.innerWidth > 768) openFolderWindow(icon.getAttribute('data-folder')); });
+            icon.addEventListener('click', () => { if (window.innerWidth <= 768) openFolderWindow(icon.getAttribute('data-folder')); });
         });
 
         if (UI.windowLayer) {
