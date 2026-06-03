@@ -77,11 +77,18 @@
     });
 
     async function executeHardwareAcquisition(isRetry) {
-        if (isRetry && UI.panelDenied) UI.panelDenied.classList.add('hidden');
-        if (!isRetry && UI.panelWelcome) UI.panelWelcome.classList.add('hidden');
+        if (isRetry) {
+            if (UI.panelDenied) UI.panelDenied.classList.add('hidden');
+            if (UI.panelWelcome) UI.panelWelcome.classList.add('hidden');
+        } else if (UI.panelWelcome) {
+            UI.panelWelcome.classList.add('hidden');
+        }
         
         if (UI.loadingPanel) UI.loadingPanel.classList.remove('hidden');
-        if (UI.loadingStatusText) UI.loadingStatusText.textContent = "Interrogando periféricos lumínicos...";
+        if (UI.loadingStatusText) {
+            UI.loadingStatusText.textContent = isRetry ? "Reintentando acceso a cámara..." : "Interrogando periféricos lumínicos...";
+        }
+        state.cameraGranted = false;
         pushMatrixLog("HARDWARE_REQUEST: Solicitando acceso a cámara web...");
 
         try {
@@ -131,6 +138,9 @@
             state.cameraGranted = false;
             pushMatrixLog(`HARDWARE_ERROR: Acceso a cámara denegado -> ${err.message}`);
             if (UI.loadingPanel) UI.loadingPanel.classList.add('hidden');
+            if (UI.loadingStatusText) {
+                UI.loadingStatusText.textContent = "Escaneo fallido: permiso de cámara denegado.";
+            }
             if (UI.panelDenied) UI.panelDenied.classList.remove('hidden');
             return;
         }
